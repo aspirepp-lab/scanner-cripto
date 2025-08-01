@@ -3,4 +3,4 @@ pandas
 requests
 flask
 ta
-git+https://github.com/twopirllc/pandas-ta@development
+pandas-ta
