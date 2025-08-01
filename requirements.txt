@@ -3,4 +3,4 @@ pandas
 requests
 flask
 ta
-pandas-ta==0.3.14b
+git+https://github.com/twopirllc/pandas-ta@development
