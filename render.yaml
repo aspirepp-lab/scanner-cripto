@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: scanner-cripto
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main.py"
+    autoDeploy: false
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        value: 8423031456:AAH8ieCQdBR5XBCXubYG_qn9m9Gauc7gRdE
+      - key: TELEGRAM_CHAT_ID
+        value: 5437395542
+      - key: REPLIT_WEBHOOK_URL
+        value: https://scanner-cripto.onrender.com
