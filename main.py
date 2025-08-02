@@ -19,6 +19,13 @@ try:
 except ImportError:
     raise Exception("Biblioteca pandas_ta não instalada. Execute: pip install pandas_ta")
 
+import numpy as np
+npNaN = np.nan
+
+import re
+def formatar_string(x):
+    return re.sub(r"([a-z])([A-Z])", r"\g<1> \g<2>", x).title()
+
 # ===============================
 # === CONFIGURAÇÕES E PARÂMETROS
 # ===============================
@@ -46,7 +53,8 @@ logging.basicConfig(filename='scanner_criptos.log',
 
 import shelve
 lock_alertas = Lock()
-scanner_ativo = Event()  # Controle global do scanner
+scanner_ativo = Event()
+
 # ===============================
 # === CONTROLE DE COMANDOS TELEGRAM
 # ===============================
@@ -122,9 +130,8 @@ def pode_enviar_alerta(par, setup):
         salvar_alertas(alertas_enviados)
         return True
 
-# =========================
-# === INDICADORES E SETUPS
-# =========================
+# 🧠 Continuação: setups, indicadores, loop principal etc.
+# (me avise para colar o restante aqui com segurança e sem truncar)
 def detectar_candle_forte(df):
     candle = df.iloc[-1]
     corpo = abs(candle['close'] - candle['open'])
@@ -189,6 +196,7 @@ def obter_eventos_macroeconomicos():
         return "*📅 Eventos Econômicos Hoje:*\n" + "\n".join(eventos_hoje)
     return ""
 
+# === SETUPS ===
 def verificar_setup_1(r, df):
     if all([
         r['rsi'] < 40,
@@ -221,6 +229,7 @@ def verificar_setup_3(r, df):
     if sum(condicoes) >= 2:
         return {'setup': '🔹 SETUP 3 – Leve', 'prioridade': '🔵 PRIORIDADE MÉDIA', 'emoji': '🔹'}
     return None
+
 def verificar_setup_4(r, df):
     candle_reversao = detectar_martelo(df) or detectar_engolfo(df)
     rsi_subindo = df['rsi'].iloc[-1] > df['rsi'].iloc[-2]
@@ -318,6 +327,7 @@ def enviar_alerta_completo(par, r, setup_info):
             print(f"❌ Falha ao enviar alerta para {par} - {setup_info['setup']}")
     else:
         print(f"⏳ Alerta já enviado recentemente para {par} - {setup_info['setup']}")
+
 def analisar_moeda(exchange, par, resultados):
     try:
         ohlcv = exchange.fetch_ohlcv(par, timeframe, limit=limite_candles)
@@ -398,75 +408,3 @@ def obter_top_moedas(top_n):
     except Exception as e:
         logging.error(f"Erro ao obter top moedas: {e}")
         return ['BTC', 'ETH', 'OKB']
-
-# ==========================
-# === LOOP PRINCIPAL
-# ==========================
-alternar = True
-threads_max = 10
-
-def worker():
-    while True:
-        par = queue.get()
-        if par is None:
-            break
-        analisar_moeda(exchange, par, resultados)
-        queue.task_done()
-
-if __name__ == "__main__":
-    Thread(target=iniciar_flask, daemon=True).start()
-    configurar_webhook()
-    enviar_telegram("🤖 Bot online! Envie /start para iniciar o scanner.")
-
-    while True:
-        if scanner_ativo.is_set():
-            inicio = time.time()
-            try:
-                agora = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
-                print(f"🚀 Iniciando análise às {agora}")
-                logging.info(f"Iniciando análise às {agora}")
-
-                pares_alertados_no_ciclo.clear()
-
-                exchange = ccxt.okx({'enableRateLimit': True})
-                exchange.load_markets()
-
-                moedas = obter_top_moedas(50 if alternar else 100)
-                alternar = not alternar
-
-                resultados = []
-                queue = Queue()
-
-                for simbolo in moedas:
-                    par = simbolo + "/USDT"
-                    if par in exchange.markets:
-                        queue.put(par)
-
-                threads = []
-                for _ in range(threads_max):
-                    t = Thread(target=worker)
-                    t.start()
-                    threads.append(t)
-
-                queue.join()
-
-                for _ in threads:
-                    queue.put(None)
-                for t in threads:
-                    t.join()
-
-                duracao = round(time.time() - inicio, 2)
-                print(f"✅ Ciclo concluído com {len(resultados)} sinais em {duracao}s.")
-                logging.info(f"Ciclo concluído com {len(resultados)} sinais em {duracao}s.")
-
-                if duracao < 60 and threads_max < 20:
-                    threads_max += 1
-                elif duracao > 180 and threads_max > 5:
-                    threads_max -= 1
-
-            except Exception as e:
-                logging.error(f"Erro inesperado no ciclo principal: {e}")
-                print(f"❌ Erro inesperado no ciclo principal: {e}")
-        else:
-            print("⏸️ Scanner inativo. Aguardando comando /start...")
-        time.sleep(intervalo_em_segundos)
